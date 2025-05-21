@@ -1,0 +1,63 @@
+✅ PHP 7.4.33 does support the modern array-style setcookie() function — so you can use the cleaner and more reliable method to explicitly set SameSite=None; Secure cookies without hacks.
+
+✅ Step 1: Create a Clean Hook to Set SameSite in setcookie()
+📄 File: application/hooks/Samesite_cookie_hook.php
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+function set_samesite_cookie()
+{
+    $CI =& get_instance();
+
+    $cookie_name     = $CI->config->item('sess_cookie_name');
+    $cookie_path     = $CI->config->item('cookie_path') ?: '/';
+    $cookie_domain   = $CI->config->item('cookie_domain') ?: '';
+    $cookie_secure   = $CI->config->item('cookie_secure');
+    $cookie_httponly = $CI->config->item('cookie_httponly');
+
+    if (isset($_COOKIE[$cookie_name])) {
+        // Reset cookie with SameSite=None and Secure
+        setcookie(
+            $cookie_name,
+            $_COOKIE[$cookie_name],
+            [
+                'expires' => 0,
+                'path' => $cookie_path,
+                'domain' => $cookie_domain,
+                'secure' => $cookie_secure,
+                'httponly' => $cookie_httponly,
+                'samesite' => 'None'
+            ]
+        );
+    }
+}
+
+✅ Step 2: Register the Hook
+📄 application/config/hooks.php:
+$hook['post_controller_constructor'][] = array(
+    'class'    => '',
+    'function' => 'set_samesite_cookie',
+    'filename' => 'Samesite_cookie_hook.php',
+    'filepath' => 'hooks'
+);
+
+✅ Step 3: Enable Hooks and Secure Cookies
+📄 application/config/config.php:
+$config['enable_hooks'] = TRUE;
+$config['cookie_secure'] = TRUE;       // Required for SameSite=None
+$config['cookie_httponly'] = TRUE;
+✅ This ensures the cookie is sent only over HTTPS and includes the right flags.
+
+How to Confirm It’s Working
+Open browser DevTools → Network tab
+Find the request after PayU returns
+In Response Headers, look for:
+
+Set-Cookie: ci_session=...; Path=/; Secure; HttpOnly; SameSite=None
+
+
+
+✅ Final Notes
+This method is clean, native, and preferred on PHP 7.3+
+Works reliably in all modern browsers
+Be sure your site uses HTTPS, or cookies with Secure will be dropped

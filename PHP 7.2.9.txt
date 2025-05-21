@@ -1,0 +1,56 @@
+✅ PHP 7.2 does not support the array-style setcookie() with SameSite natively.
+
+✅ Step-by-Step Implementation for CodeIgniter 3 + PHP 7.2
+🧩 1. Create Samesite_cookie_hook.php (Output Buffer Method)
+📄 File: application/hooks/Samesite_cookie_hook.php
+
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Hook: modifies Set-Cookie headers to append SameSite=None
+ * Works on PHP 7.2 where native SameSite support is missing
+ */
+function set_samesite_cookie()
+{
+    ob_start(function ($buffer) {
+        // Modify any Set-Cookie header for ci_session
+        header_remove("Set-Cookie"); // Remove old ones
+
+        foreach (headers_list() as $header) {
+            if (stripos($header, 'Set-Cookie:') === 0 && stripos($header, 'ci_session') !== false) {
+                header(str_replace(
+                    "\r\n", '',
+                    $header . '; SameSite=None; Secure'
+                ));
+            }
+        }
+
+        return $buffer;
+    });
+}
+
+🧩 2. Register the Hook
+📄 File: application/config/hooks.php
+
+$hook['post_controller_constructor'][] = array(
+    'class'    => '',
+    'function' => 'set_samesite_cookie',
+    'filename' => 'Samesite_cookie_hook.php',
+    'filepath' => 'hooks'
+);
+
+🧩 3. Enable Hooks in Config
+📄 File: application/config/config.php
+
+$config['enable_hooks'] = TRUE;
+$config['cookie_secure'] = TRUE;        // Required for SameSite=None
+$config['cookie_httponly'] = TRUE;
+✅ Your site must be HTTPS, or Secure cookies will be dropped by the browser.
+
+✅ Final Test
+After PayU redirects to your site:
+Open DevTools → Network tab → Select your response URL
+Check the Set-Cookie header
+You should see:
+Set-Cookie: ci_session=...; path=/; Secure; HttpOnly; SameSite=None
